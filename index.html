@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Project Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel, onSnapshot, collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebase = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, setLogLevel, onSnapshot, collection, addDoc, updateDoc, deleteDoc, doc };
+    </script>
+
+    <style>
+        /* --- ADVANCED LIGHT THEME STYLING --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Light, professional background */
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); /* White to light gray */
+            min-height: 100vh;
+            color: #1e293b; /* Dark text for light background */
+        }
+
+        /* Base Card Styling for Clean, Modern Look */
+        .modern-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0; /* Light border */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05), 0 3px 6px rgba(0, 0, 0, 0.03);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ZOOM-IN Hover Effect */
+        .modern-card:hover {
+            transform: scale(1.05); /* Zoom-in effect */
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05);
+            z-index: 10; /* Ensure the zoomed card is on top */
+        }
+        
+        /* Icon Container Styling - Subtle Color Background */
+        .card-icon-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-icon-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 150%;
+            height: 150%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            opacity: 0.1; /* Very subtle background glow */
+            pointer-events: none;
+        }
+        
+        /* Button Styles */
+        .btn-advanced {
+            transition: all 0.3s ease-in-out;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-advanced:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* --- FEATURE-SPECIFIC COLORS (ACCENTS) --- */
+
+        /* 1. URL Translator (Cyan) */
+        .card-1 .card-icon-container::before { background-color: #06b6d4; }
+        .card-1 .btn-advanced { background-color: #06b6d4; } 
+        .card-1 .btn-advanced:hover { background-color: #0891b2; box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
+
+        /* 2. Real-Time Group Chat (Green) */
+        .card-2 .card-icon-container::before { background-color: #10b981; }
+        .card-2 .btn-advanced { background-color: #10b981; } 
+        .card-2 .btn-advanced:hover { background-color: #059669; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+
+        /* 3. Bilingual Conversation (Blue) */
+        .card-3 .card-icon-container::before { background-color: #3b82f6; }
+        .card-3 .btn-advanced { background-color: #3b82f6; } 
+        .card-3 .btn-advanced:hover { background-color: #2563eb; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+
+        /* 4. Content Generator (Violet) */
+        .card-4 .card-icon-container::before { background-color: #8b5cf6; }
+        .card-4 .btn-advanced { background-color: #8b5cf6; } 
+        .card-4 .btn-advanced:hover { background-color: #7c3aed; box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
+    </style>
+</head>
+<body class="p-4 sm:p-10 flex flex-col items-center">
+
+    <div class="w-full max-w-7xl mt-8 mb-16">
+        
+        <header class="text-center mb-16 p-8 bg-white/70 rounded-2xl shadow-xl">
+            <h1 class="text-5xl md:text-6xl font-extrabold tracking-tighter text-gray-900 mb-4">
+                <i data-lucide="aperture" class="inline-block w-8 h-8 md:w-10 md:h-10 mr-3 text-indigo-600"></i>AI Translator Launchpad
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                The Next-Generation Language Workstation. Access real-time translation, content generation, and collaborative tools.
+            </p>
+        </header>
+        
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-700 ml-4 mb-4 tracking-wide border-b pb-2 border-gray-200">FEATURE MODULES</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            
+            <a href="url_video_summary.html" class="feature-card card-1 modern-card p-6 rounded-2xl">
+                <div class="card-icon-container p-4 rounded-full w-fit mb-5 ring-2 ring-cyan-500/10 bg-cyan-50">
+                    <i data-lucide="monitor-play" class="w-7 h-7 text-cyan-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2 tracking-tight">
+                    Real-Time Translator & URL Based Video Summary
+                </h3>
+                <p class="text-gray-500 text-sm mb-6">
+                    Analyze, summarize, and translate content from any public web or video URL instantly.
+                </p>
+                <div class="btn-advanced inline-flex items-center py-2 px-4 rounded-lg text-sm shadow-md">
+                    Launch Tool <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                </div>
+            </a>
+            
+            <a href="realtimechat.html" class="feature-card card-2 modern-card p-6 rounded-2xl">
+                <div class="card-icon-container p-4 rounded-full w-fit mb-5 ring-2 ring-emerald-500/10 bg-emerald-50">
+                    <i data-lucide="messages-square" class="w-7 h-7 text-emerald-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2 tracking-tight">
+                    Real-Time Chat
+                </h3>
+                <p class="text-gray-500 text-sm mb-6">
+                    Multi-user chat with seamless, instant, and multi-directional translation.
+                </p>
+                <div class="btn-advanced inline-flex items-center py-2 px-4 rounded-lg text-sm shadow-md">
+                    Launch Tool <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                </div>
+            </a>
+
+            <a href="biliangual_translator.html" class="feature-card card-3 modern-card p-6 rounded-2xl">
+                <div class="card-icon-container p-4 rounded-full w-fit mb-5 ring-2 ring-blue-500/10 bg-blue-50">
+                    <i data-lucide="message-square-text" class="w-7 h-7 text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2 tracking-tight">
+                    Bilingual Voice Interface
+                </h3>
+                <p class="text-gray-500 text-sm mb-6">
+                    Enables fluid, simultaneous speech translation for two parties in a natural, real-time flow.
+                </p>
+                <div class="btn-advanced inline-flex items-center py-2 px-4 rounded-lg text-sm shadow-md">
+                    Launch Tool <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                </div>
+            </a>
+
+            <a href="ai_text_generate.html" class="feature-card card-4 modern-card p-6 rounded-2xl">
+                <div class="card-icon-container p-4 rounded-full w-fit mb-5 ring-2 ring-violet-500/10 bg-violet-50">
+                    <i data-lucide="brain-circuit" class="w-7 h-7 text-violet-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2 tracking-tight">
+                    AI Content Generator
+                </h3>
+                <p class="text-gray-500 text-sm mb-6">
+                    Generate professional articles, communications, and creative texts in multiple languages.
+                </p>
+                <div class="btn-advanced inline-flex items-center py-2 px-4 rounded-lg text-sm shadow-md">
+                    Launch Tool <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                </div>
+            </a>
+            
+        </div>
+        
+        <footer class="mt-16 text-center text-gray-500">
+            <p id="statusMessage" class="text-xs border-t border-gray-200 pt-4">SYSTEM STATUS: <span class="text-green-600 font-medium">All Modules Operational</span> | Ready for Input.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Load Lucide icons for rendering
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+        });
+    </script>
+</body>
+</html>
