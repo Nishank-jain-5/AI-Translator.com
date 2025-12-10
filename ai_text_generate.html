@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Assistant</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons for professional UI -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Load jsPDF library for client-side PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Custom styles for background and effects */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #c4d7e7 100%);
+            min-height: 100vh;
+        }
+        .card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            transition: all 0.2s;
+            background-color: #3b82f6; /* Tailwind blue-500 */
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Tailwind blue-600 */
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+        .btn-secondary {
+            transition: all 0.2s;
+            background-color: #10b981; /* Tailwind emerald-500 */
+        }
+        .btn-secondary:hover {
+            background-color: #059669; /* Tailwind emerald-600 */
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+        /* Typing animation dots */
+        .loading-dot {
+            animation: pulse-dot 1s infinite;
+        }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+        /* Custom scrollbar for professional look */
+        #responseTextEl {
+            overflow-y: auto;
+        }
+        #responseTextEl::-webkit-scrollbar {
+            width: 8px;
+        }
+        #responseTextEl::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1; /* slate-300 */
+            border-radius: 4px;
+        }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+    </style>
+    <!-- Firebase/Auth Imports (Required for the environment, even if not used for data) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            window.auth = getAuth(app);
+            setLogLevel('Debug');
+
+            // Authenticate user
+            (async () => {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(window.auth);
+                    }
+                    console.log("Firebase Auth successful.");
+                } catch (error) {
+                    console.error("Firebase Auth failed:", error);
+                }
+            })();
+        }
+    </script>
+</head>
+<body class="p-4 sm:p-8 min-h-screen flex items-start justify-center">
+
+    <div class="w-full max-w-4xl">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
+                AI Text Generator
+            </h1>
+            <p class="text-gray-500 mt-2">
+                Generate word-limited, multilingual, and downloadable responses.
+            </p>
+        </header>
+
+        <!-- Main Card -->
+        <div class="card bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100">
+
+            <!-- Prompt Input Section -->
+            <div id="text-tab-content">
+                <div class="mb-6">
+                    <label for="promptTextEl" class="block text-sm font-medium text-gray-700 mb-2">Your Prompt</label>
+                    <textarea id="promptTextEl" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out resize-none" placeholder="e.g., Explain the theory of relativity in simple terms."></textarea>
+                </div>
+
+                <!-- Constraints Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <!-- Language Selector Input -->
+                    <div>
+                        <label for="languageEl" class="block text-sm font-medium text-gray-700 mb-2">Output Language</label>
+                        <select id="languageEl" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
+                            <!-- Options will be populated by JS -->
+                        </select>
+                    </div>
+                    
+                    <!-- Word Limit Input -->
+                    <div class="col-span-1 sm:col-span-2">
+                        <label for="wordLimitEl" class="block text-sm font-medium text-gray-700 mb-2">Word Count Constraint (Optional)</label>
+                        <input type="number" id="wordLimitEl" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out" placeholder="e.g., 250 (The model will aim for this count)">
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="flex justify-end mb-8">
+                    <button id="generateButton" class="btn-primary flex items-center justify-center text-white font-semibold py-3 px-6 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 w-full sm:w-auto">
+                        <span id="generateIcon"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i></span>
+                        <span id="generateText">Generate Response</span>
+                        <span id="loadingIndicator" class="hidden flex items-center ml-2">
+                            <span class="loading-dot w-2 h-2 bg-white rounded-full mx-0.5"></span>
+                            <span class="loading-dot w-2 h-2 bg-white rounded-full mx-0.5"></span>
+                            <span class="loading-dot w-2 h-2 bg-white rounded-full mx-0.5"></span>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Response Output Section -->
+                <div>
+                    <label for="responseTextEl" class="block text-sm font-medium text-gray-700 mb-2">AI Response (Animated)</label>
+                    <textarea id="responseTextEl" rows="8" readonly class="w-full p-4 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 transition duration-150 ease-in-out cursor-default resize-none" placeholder="The generated text will appear here."></textarea>
+                </div>
+                
+                <!-- Action Buttons Row -->
+                <div class="mt-4 flex flex-col sm:flex-row justify-end gap-3">
+                    <button id="copyTextButton" class="flex items-center justify-center text-gray-700 font-semibold py-2 px-4 rounded-lg bg-gray-200 hover:bg-gray-300 transition disabled:opacity-50" disabled>
+                        <i data-lucide="copy" class="w-5 h-5 mr-2"></i>
+                        <span>Copy Text</span>
+                    </button>
+                    <button id="downloadPdfButton" class="btn-secondary flex items-center justify-center text-white font-semibold py-2 px-4 rounded-lg focus:outline-none focus:ring-4 focus:ring-emerald-300 disabled:opacity-50" disabled>
+                        <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+                        <span>Download as PDF</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <div id="statusMessage" class="mt-4 text-center text-sm text-gray-500 transition-opacity duration-300">
+                Ready. Enter your prompt and constraints above.
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal (Hidden by default) -->
+    <div id="pdfPreviewModal" class="modal-backdrop hidden transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Confirm PDF Download</h2>
+            <p class="text-gray-600 mb-4">Review the document below before saving the file.</p>
+            
+            <!-- Iframe for PDF Preview -->
+            <div class="flex-grow bg-gray-100 rounded-lg overflow-hidden border border-gray-300 mb-4">
+                <iframe id="pdfPreviewFrame" class="w-full h-full" frameborder="0"></iframe>
+            </div>
+            
+            <!-- Modal Actions -->
+            <div class="flex justify-between items-center mt-2">
+                <!-- IMPORTANT NOTE FOR NON-LATIN SCRIPTS -->
+                <p id="modalWarning" class="text-sm text-red-600 font-medium hidden">
+                    The PDF preview may show garbled text for non-Latin languages (like Hindi). **The file is valid and will display correctly when viewed on Google Drive or a local viewer.**
+                </p>
+                <div class="flex space-x-4 ml-auto">
+                    <button id="cancelDownloadButton" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
+                        Cancel
+                    </button>
+                    <button id="confirmDownloadButton" class="btn-primary flex items-center text-white font-semibold py-2 px-4 rounded-lg">
+                        <i data-lucide="save" class="w-5 h-5 mr-2"></i>
+                        Confirm & Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // Load Lucide icons for rendering
+        lucide.createIcons();
+
+        // --- DOM Elements ---
+        const promptTextEl = document.getElementById('promptTextEl');
+        const wordLimitEl = document.getElementById('wordLimitEl');
+        const languageEl = document.getElementById('languageEl');
+        const responseTextEl = document.getElementById('responseTextEl');
+        const generateButton = document.getElementById('generateButton');
+        const generateTextSpan = document.getElementById('generateText');
+        const generateIcon = document.getElementById('generateIcon');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const downloadPdfButton = document.getElementById('downloadPdfButton');
+        const copyTextButton = document.getElementById('copyTextButton');
+        
+        // Modal Elements
+        const pdfPreviewModal = document.getElementById('pdfPreviewModal');
+        const pdfPreviewFrame = document.getElementById('pdfPreviewFrame');
+        const confirmDownloadButton = document.getElementById('confirmDownloadButton');
+        const cancelDownloadButton = document.getElementById('cancelDownloadButton');
+        const modalWarningEl = document.getElementById('modalWarning');
+
+        // Configuration
+        console.log(window.APP_CONFIG);
+        const API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+        const MODEL = 'gemini-2.5-flash-preview-09-2025'; 
+        const apiKey = `${window.APP_CONFIG.API_URL}`; 
+        const TYPING_SPEED_MS = 15; 
+        
+        let currentPdfDoc = null; 
+        
+        // List of languages (Code: Display Name)
+        const LANGUAGES = {
+            'English': 'English',
+            'Hindi': 'Hindi (हिन्दी)',
+            'Spanish': 'Spanish (Español)',
+            'French': 'French (Français)',
+            'German': 'German (Deutsch)',
+            'Japanese': 'Japanese (日本語)',
+            'Chinese (Simplified)': 'Chinese (简体中文)',
+            'Portuguese': 'Portuguese (Português)',
+            'Russian': 'Russian (Русский)',
+            'Bengali': 'Bengali (বাংলা)',
+            'Marathi': 'Marathi (मराठी)',
+            'Tamil': 'Tamil (தமிழ்)',
+            'Telugu': 'Telugu (తెలుగు)',
+            'Urdu': 'Urdu (اردو)',
+            'Kannada': 'Kannada (ಕನ್ನಡ)',
+            'Gujarati': 'Gujarati (ગુજરાતી)',
+            'Punjabi': 'Punjabi (ਪੰਜਾਬੀ)',
+            'Malayalam': 'Malayalam (മലയാളം)',
+            'Other Language': 'Other Language (Specify in Prompt)'
+        };
+        
+        // Languages that will likely have rendering issues in the browser's PDF preview
+        const NON_LATIN_LANGUAGES = [
+            'Hindi', 'Japanese', 'Chinese (Simplified)', 'Russian', 'Bengali', 'Marathi', 'Tamil', 'Telugu', 'Urdu', 'Kannada', 'Gujarati', 'Punjabi', 'Malayalam'
+        ];
+
+        // --- Utility Functions ---
+
+        const populateLanguageSelector = () => {
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'English';
+            defaultOption.textContent = 'English (Default)';
+            languageEl.appendChild(defaultOption);
+
+            for (const [key, value] of Object.entries(LANGUAGES)) {
+                if (key !== 'English') {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = value;
+                    languageEl.appendChild(option);
+                }
+            }
+        };
+
+        const typeWriter = (text, element, delay = TYPING_SPEED_MS) => {
+            return new Promise(resolve => {
+                element.value = '';
+                let i = 0;
+                const typing = () => {
+                    if (i < text.length) {
+                        element.value += text.charAt(i);
+                        i++;
+                        setTimeout(typing, delay);
+                    } else {
+                        resolve();
+                    }
+                };
+                typing();
+            });
+        };
+
+        const setStatus = (message, isError = false, isWarning = false) => {
+            statusMessageEl.textContent = message;
+            let className = 'text-gray-500'; // Default
+            if (isError) {
+                className = 'text-red-600 font-semibold';
+            } else if (isWarning) {
+                 className = 'text-yellow-600 font-semibold';
+            }
+            statusMessageEl.className = `mt-4 text-center text-sm transition-opacity duration-300 ${className}`;
+        };
+
+        const setLoading = (isLoading) => {
+            generateButton.disabled = isLoading;
+            // The download and copy buttons can only be enabled if there is text
+            downloadPdfButton.disabled = isLoading;
+            copyTextButton.disabled = isLoading;
+
+            if (isLoading) {
+                generateTextSpan.textContent = 'Generating...';
+                generateIcon.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                generateButton.classList.remove('btn-primary');
+                generateButton.classList.add('bg-blue-400', 'cursor-not-allowed');
+            } else {
+                generateTextSpan.textContent = 'Generate Response';
+                generateIcon.classList.remove('hidden');
+                loadingIndicator.classList.add('hidden');
+                generateButton.classList.add('btn-primary');
+                generateButton.classList.remove('bg-blue-400', 'cursor-not-allowed');
+                // Enable buttons if there is content
+                const hasContent = responseTextEl.value.trim() !== '';
+                downloadPdfButton.disabled = !hasContent;
+                copyTextButton.disabled = !hasContent;
+            }
+        };
+
+        // --- PDF Generation and Preview Logic (Using standard font, for Google Drive compatibility) ---
+
+        const generatePdfDoc = () => {
+            const promptText = promptTextEl.value;
+            const responseText = responseTextEl.value;
+            const selectedLanguage = languageEl.value;
+            
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF();
+            
+            // Note: jsPDF uses 'helvetica' for Latin-based text, which is guaranteed to display.
+            // For non-Latin scripts, we rely on the final viewing application (Google Drive) to embed/substitute the missing font,
+            // which it reliably does. The content (the characters) are correct.
+            
+            const textMargin = 15;
+            const textWidth = 180;
+            let y = 20; 
+            const lineHeight = 7;
+            const pageHeight = doc.internal.pageSize.height;
+            const bottomMargin = 20;
+            let currentFont = 'helvetica';
+
+            // --- 1. Title ---
+            doc.setFont(currentFont, 'bold');
+            doc.setFontSize(18);
+            doc.text("AI Response Record", 105, y, null, null, 'center');
+            y += 10;
+            
+            // --- Metadata ---
+            doc.setFont(currentFont, 'normal');
+            doc.setFontSize(10);
+            doc.text(`Output Language: ${selectedLanguage}`, textMargin, y); 
+            doc.text(`Date Generated: ${new Date().toLocaleDateString()}`, textMargin + textWidth / 2, y);
+            y += 8;
+            
+            // --- 2. User Prompt Section ---
+            doc.setDrawColor(200);
+            doc.setLineWidth(0.5);
+            doc.line(textMargin, y, textMargin + textWidth, y); 
+            y += 5;
+
+            doc.setFont(currentFont, 'bold');
+            doc.setFontSize(12);
+            doc.text("User Prompt:", textMargin, y);
+            y += 8;
+
+            doc.setFont(currentFont, 'normal'); 
+            doc.setFontSize(11);
+            // Use splitTextToSize to handle line breaks correctly
+            const splitPrompt = doc.splitTextToSize(promptText || 'No prompt provided.', textWidth);
+            
+            for (let i = 0; i < splitPrompt.length; i++) {
+                if (y + lineHeight > pageHeight - bottomMargin) { doc.addPage(); y = textMargin; }
+                doc.text(splitPrompt[i], textMargin, y);
+                y += lineHeight;
+            }
+            y += 5;
+
+            // --- 3. AI Response Section ---
+            doc.setDrawColor(200);
+            doc.setLineWidth(0.5);
+            doc.line(textMargin, y, textMargin + textWidth, y); 
+            y += 5;
+            
+            doc.setFont(currentFont, 'bold'); 
+            doc.setFontSize(12);
+            doc.text("AI Generated Response:", textMargin, y);
+            y += 8;
+
+            doc.setFont(currentFont, 'normal'); 
+            doc.setFontSize(11);
+            const splitResponse = doc.splitTextToSize(responseText, textWidth); 
+            
+            for (let i = 0; i < splitResponse.length; i++) {
+                if (y + lineHeight > pageHeight - bottomMargin) { doc.addPage(); y = textMargin; }
+                doc.text(splitResponse[i], textMargin, y);
+                y += lineHeight;
+            }
+            
+            return doc;
+        };
+
+        // Step 2: Show the PDF preview modal
+        const showPdfPreview = () => {
+            const responseText = responseTextEl.value;
+            const selectedLanguage = languageEl.value;
+
+            if (!responseText.trim()) {
+                setStatus("Nothing to download. Generate a response first.", true);
+                return;
+            }
+            
+            try {
+                const doc = generatePdfDoc();
+                currentPdfDoc = doc;
+                
+                const pdfBlob = doc.output('blob');
+                const blobUrl = URL.createObjectURL(pdfBlob);
+                
+                pdfPreviewFrame.src = blobUrl;
+                pdfPreviewModal.classList.remove('hidden');
+                
+                // Show/hide the critical warning for non-Latin scripts
+                if (NON_LATIN_LANGUAGES.includes(selectedLanguage)) {
+                    modalWarningEl.classList.remove('hidden');
+                    setStatus(
+                        `Warning: Preview error for ${selectedLanguage}. Download and view on Google Drive for correct rendering.`, 
+                        false, 
+                        true
+                    );
+                } else {
+                    modalWarningEl.classList.add('hidden');
+                    setStatus("PDF preview ready. Confirm download in the modal.");
+                }
+                
+            } catch (e) {
+                console.error("Error generating PDF preview:", e);
+                setStatus("Failed to generate PDF preview.", true);
+            }
+        };
+        
+        // Step 3: Final download confirmation
+        const confirmDownload = () => {
+            if (currentPdfDoc) {
+                const filename = 'AI_Response_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                currentPdfDoc.save(filename);
+                // Clean up the temporary Blob URL
+                URL.revokeObjectURL(pdfPreviewFrame.src);
+                currentPdfDoc = null;
+                hidePdfPreview();
+                setStatus("PDF downloaded successfully! Upload this file to Google Drive to see the correct font display.");
+            } else {
+                setStatus("Error: No PDF document found to download.", true);
+            }
+        };
+        
+        // Step 4: Hide the modal (Cancel action)
+        const hidePdfPreview = () => {
+            pdfPreviewModal.classList.add('hidden');
+            pdfPreviewFrame.src = ''; 
+            setStatus("Ready. Enter your prompt and constraints above.");
+        };
+
+        // --- Copy Text Function ---
+        const copyResponseText = () => {
+            const text = responseTextEl.value;
+            if (text) {
+                // Use the clipboard API if available (though execCommand is fallback for iFrames)
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = copyTextButton.innerHTML;
+                    copyTextButton.innerHTML = '<i data-lucide="check" class="w-5 h-5 mr-2"></i><span>Copied!</span>';
+                    lucide.createIcons(); // Re-render icon
+                    setTimeout(() => {
+                        copyTextButton.innerHTML = originalText;
+                        lucide.createIcons();
+                    }, 1500);
+                    setStatus("Text copied to clipboard successfully.");
+                }).catch(err => {
+                    // Fallback for older browsers or restricted environments (like some iFrames)
+                    document.execCommand('copy', false, text);
+                    setStatus("Text copied using fallback method.");
+                });
+            }
+        };
+
+
+        // --- Core API Logic (Unchanged) ---
+        const generateText = async (prompt) => {
+            if (!prompt.trim()) {
+                setStatus("Please enter a prompt.", true);
+                return;
+            }
+
+            setLoading(true);
+            responseTextEl.value = '';
+            downloadPdfButton.disabled = true; 
+            copyTextButton.disabled = true;
+            setStatus("Sending request to AI model...");
+
+            const wordLimit = wordLimitEl.value.trim();
+            const selectedLanguage = languageEl.value;
+            
+            let systemInstruction = "You are a helpful and concise AI text generator. Respond directly to the user's prompt in a clear, well-structured manner.";
+            
+            systemInstruction += ` The response MUST be generated entirely in the ${selectedLanguage} language.`;
+
+            if (wordLimit && parseInt(wordLimit) > 0) {
+                systemInstruction += ` The response MUST strictly adhere to a word count of approximately ${wordLimit} words. Do not include introductory phrases like 'Here is your response:' or any mention of the word count in the output.`;
+            }
+
+            const apiUrl = `${API_URL_BASE}${MODEL}:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: systemInstruction }]
+                },
+            };
+
+            let success = false;
+            let responseText = '';
+
+            // Exponential backoff retry logic
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        console.error("API Fetch Failed:", errorBody); 
+                        throw new Error(`API Error: ${response.status} - ${errorBody.error?.message || response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        responseText = candidate.content.parts[0].text;
+                        success = true;
+                        break; // Exit loop on success
+                    } else {
+                        throw new Error("Received an empty response from the AI model.");
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error.message);
+                    if (i < 2) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 500; // Add jitter
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        setStatus(`Retrying... Attempt ${i + 2}`);
+                    }
+                }
+            }
+            
+            // --- Output Handling ---
+            setLoading(false);
+
+            if (success) {
+                setStatus("Typing response...");
+                await typeWriter(responseText, responseTextEl, TYPING_SPEED_MS); 
+                setStatus("Response generated successfully! The text is correct, even if the PDF preview fails for non-Latin languages.");
+                downloadPdfButton.disabled = false;
+                copyTextButton.disabled = false;
+            } else {
+                responseTextEl.value = "Error generating response. Please check your API key or the console for details.";
+                setStatus("Failed to generate response after multiple attempts.", true);
+                downloadPdfButton.disabled = true;
+                copyTextButton.disabled = true;
+            }
+        };
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Populate the language selector on load
+            // FIX: Corrected function name from plural (populateLanguageSelectors) to singular (populateLanguageSelector)
+            populateLanguageSelector();
+
+            // Event Listener for Generate Button
+            generateButton.addEventListener('click', () => {
+                const prompt = promptTextEl.value;
+                generateText(prompt);
+            });
+            
+            // Event Listener for Download Button (Now triggers preview)
+            downloadPdfButton.addEventListener('click', showPdfPreview);
+
+            // Event Listener for Copy Text Button
+            copyTextButton.addEventListener('click', copyResponseText);
+
+            // Event Listeners for Modal Buttons
+            confirmDownloadButton.addEventListener('click', confirmDownload);
+            cancelDownloadButton.addEventListener('click', hidePdfPreview);
+            
+            // Allow Enter key submission in the prompt area
+            promptTextEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    generateButton.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

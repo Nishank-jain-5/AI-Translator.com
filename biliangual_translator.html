@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyglot Translator - Conversation Recorder</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons for professional UI -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for background and effects */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(46, 189, 219, 0.3);
+        }
+        .mic-active {
+            animation: pulse-ring 1.5s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 99, 71, 0.7); } /* Custom color for conversation mode */
+            70% { box-shadow: 0 0 0 10px rgba(255, 99, 71, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 99, 71, 0); }
+        }
+    </style>
+</head>
+<body class="flex items-start justify-center p-4 lg:p-10">
+
+    <div id="app" class="w-full max-w-4xl bg-white rounded-3xl p-8 card my-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 flex items-center justify-center">
+                <i data-lucide="scan" class="w-8 h-8 mr-3 text-red-500"></i> Bilingual Conversation Translator
+            </h1>
+            <p class="text-gray-500 mt-2 text-lg">Real-time, turn-based translation between two speakers.</p>
+        </header>
+        
+        <!-- Status Message and Loading Indicator -->
+        <div id="status-container" class="mb-6 h-8 text-center">
+            <p id="status-message" class="text-sm text-gray-600">Welcome! Select your languages and start listening.</p>
+            <div id="loading-spinner" class="hidden flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-red-600">Translating...</span>
+            </div>
+        </div>
+
+        <!-- LOGGING CONTROLS -->
+        <div class="mb-6 p-4 bg-gray-100 rounded-xl flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <h3 class="text-lg font-semibold text-gray-700 sm:mr-4">Conversation Log:</h3>
+            <button id="startLogButton"
+                class="flex items-center p-2 rounded-lg text-white font-bold bg-green-500 hover:bg-green-600 btn-primary transition duration-150">
+                <i data-lucide="play-circle" class="w-5 h-5 mr-2"></i> Start Log
+            </button>
+            <button id="stopLogButton" disabled
+                class="flex items-center p-2 rounded-lg text-white font-bold bg-red-500 hover:bg-red-600 btn-primary transition duration-150 disabled:bg-gray-400">
+                <i data-lucide="pause-circle" class="w-5 h-5 mr-2"></i> Stop Log
+            </button>
+            <button id="downloadLogButton" disabled
+                class="flex items-center p-2 rounded-lg text-white font-bold bg-blue-500 hover:bg-blue-600 btn-primary transition duration-150 disabled:bg-gray-400">
+                <i data-lucide="download" class="w-5 h-5 mr-2"></i> Download Log (.txt)
+            </button>
+        </div>
+
+
+        <!-- BILIGUAL CONVERSATION MODE -->
+        <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center">
+            <i data-lucide="messages-square" class="w-6 h-6 mr-2 text-red-500"></i> Conversation Interface
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-red-50 rounded-xl border border-red-200">
+            
+            <!-- SPEAKER A (Source/Target) -->
+            <div class="bg-white p-4 rounded-lg shadow-inner border border-red-100">
+                <h3 class="text-xl font-bold mb-3 text-red-700 flex items-center">
+                    <i data-lucide="user" class="w-5 h-5 mr-2"></i> Speaker A's Side
+                </h3>
+                
+                <div class="mb-4">
+                    <label for="langA" class="block text-sm font-medium text-gray-700 mb-1">Speaker A's Language</label>
+                    <select id="langA" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 transition duration-150">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Text Area for A's spoken text OR B's translation -->
+                <textarea id="textA" rows="4" placeholder="Speaker A's spoken text will appear here when listening for A, or the translation for B when listening for B." readonly
+                    class="w-full p-3 border border-gray-300 rounded-lg resize-none bg-gray-50 text-gray-800"></textarea>
+
+                <!-- Listen Button for A -->
+                <button id="micButtonA"
+                    class="mt-3 w-full flex items-center justify-center p-3 rounded-xl text-white font-bold bg-red-500 hover:bg-red-600 btn-primary disabled:bg-gray-400"
+                    aria-label="Start Listening for Speaker A">
+                    <i data-lucide="mic" class="w-6 h-6 mr-2"></i>
+                    <span id="micTextA">Listen (A)</span>
+                </button>
+            </div>
+
+            <!-- SPEAKER B (Source/Target) -->
+            <div class="bg-white p-4 rounded-lg shadow-inner border border-red-100">
+                <h3 class="text-xl font-bold mb-3 text-red-700 flex items-center">
+                    <i data-lucide="user-check" class="w-5 h-5 mr-2"></i> Speaker B's Side
+                </h3>
+                
+                <div class="mb-4">
+                    <label for="langB" class="block text-sm font-medium text-gray-700 mb-1">Speaker B's Language</label>
+                    <select id="langB" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 transition duration-150">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Text Area for B's spoken text OR A's translation -->
+                <textarea id="textB" rows="4" placeholder="Speaker B's spoken text will appear here when listening for B, or the translation for A when listening for A." readonly
+                    class="w-full p-3 border border-gray-300 rounded-lg resize-none bg-gray-50 text-gray-800"></textarea>
+
+                <!-- Listen Button for B -->
+                <button id="micButtonB"
+                    class="mt-3 w-full flex items-center justify-center p-3 rounded-xl text-white font-bold bg-red-500 hover:bg-red-600 btn-primary disabled:bg-gray-400"
+                    aria-label="Start Listening for Speaker B">
+                    <i data-lucide="mic" class="w-6 h-6 mr-2"></i>
+                    <span id="micTextB">Listen (B)</span>
+                </button>
+            </div>
+        </div>
+        
+    </div>
+
+    <script src="config.js"></script>
+    <!-- JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons(); // Initialize Lucide Icons
+
+            // Global Configuration & Elements
+            console.log(window.APP_CONFIG);
+            const API_KEY = `${window.APP_CONFIG.API_URL}`;
+            const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const SILENCE_THRESHOLD_MS = 5000; // 5 seconds of silence (3s-8s range requested)
+            
+            // Element references - Conversation Mode
+            const langAEl = document.getElementById('langA');
+            const langBEl = document.getElementById('langB');
+            const textAEl = document.getElementById('textA');
+            const textBEl = document.getElementById('textB');
+            const micButtonA = document.getElementById('micButtonA');
+            const micButtonB = document.getElementById('micButtonB');
+            const micTextAEl = document.getElementById('micTextA');
+            const micTextBEl = document.getElementById('micTextB');
+            
+            // Global UI References
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const statusMessageEl = document.getElementById('status-message');
+
+            // Logging elements
+            const startLogButton = document.getElementById('startLogButton');
+            const stopLogButton = document.getElementById('stopLogButton');
+            const downloadLogButton = document.getElementById('downloadLogButton');
+
+            // --- GLOBAL STATE FOR LOGGING & VAD ---
+            let recognition = null;
+            let isRecording = false;
+            let isLogging = false; 
+            let conversationHistory = []; 
+            let silenceTimeout = null; // New timer for VAD (Voice Activity Detection)
+
+            // --- VAD Helper Function ---
+            function resetSilenceTimer(recognitionInstance) {
+                clearTimeout(silenceTimeout);
+                // Set new timer
+                silenceTimeout = setTimeout(() => {
+                    if (isRecording) {
+                        console.log("Silence detected. Stopping recognition.");
+                        // Manually stop the recognition to trigger onend
+                        recognitionInstance.stop();
+                    }
+                }, SILENCE_THRESHOLD_MS);
+            }
+
+            // --- API Call and Utility Functions ---
+
+            /** Generic fetch with exponential backoff for resilience */
+            async function exponentialBackoffFetch(url, options, maxRetries = 5) {
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                            console.warn(`Rate limit hit. Retrying in ${Math.round(delay / 1000)}s...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        if (!response.ok) {
+                            return response;
+                        }
+                        return response;
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        if (i === maxRetries - 1) throw error;
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                        console.warn(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay / 1000)}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+                throw new Error("API request failed after multiple retries.");
+            }
+
+            /** Updates the UI status */
+            function setStatus(message, isError = false) {
+                statusMessageEl.textContent = message;
+                statusMessageEl.className = `text-sm mt-1 text-center ${isError ? 'text-red-600 font-semibold' : 'text-gray-600'}`;
+                loadingSpinner.classList.add('hidden');
+                statusMessageEl.classList.remove('hidden');
+            }
+
+            /** Shows the loading spinner and disables controls */
+            function startLoading() {
+                loadingSpinner.classList.remove('hidden');
+                statusMessageEl.classList.add('hidden');
+                
+                // Disable all primary action buttons
+                micButtonA.disabled = true;
+                micButtonB.disabled = true;
+            }
+
+            /** Hides the loading spinner and unconditionally re-enables all controls */
+            function stopLoading() {
+                loadingSpinner.classList.add('hidden');
+                statusMessageEl.classList.remove('hidden');
+                
+                // Unconditionally re-enable all buttons
+                micButtonA.disabled = false;
+                micButtonB.disabled = false;
+            }
+
+
+            // --- Core Translation Logic (Gemini API Calls) ---
+
+            async function performTranslation(userQuery, targetLangCode) {
+                const targetLang = targetLangCode.substring(0, 2); 
+                const apiUrl = GEMINI_TEXT_API_URL;
+
+                const systemInstruction = `You are a highly accurate, real-time language translation engine. Your task is to perform the requested operation strictly into language code ${targetLang}. Respond *only* with the translated text, do not add any commentary, filler, or quotes around the output.`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                };
+
+                try {
+                    const response = await exponentialBackoffFetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API returned status ${response.status}: ${errorBody.substring(0, 150)}...`);
+                    }
+
+                    const result = await response.json();
+                    let translated = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (translated && translated.trim().length > 0) {
+                        translated = translated.trim();
+                        setStatus("Translation complete. Playing audio...");
+                        return translated;
+                    } else {
+                        setStatus("Translation failed: Empty response from API. Check console.", true);
+                        return null;
+                    }
+
+                } catch (error) {
+                    console.error("Translation API FAILED:", error);
+                    setStatus(`Translation failed: ${error.message || 'Unknown network error'}.`, true);
+                    return null;
+                } 
+            }
+
+            // --- Conversation Mode Logic ---
+
+            async function handleConversationTranslation(sourceText, sourceLangCode, targetLangCode, targetEl, speaker) {
+                if (!sourceText.trim()) {
+                    setStatus("No speech detected. Conversation ready for next speaker.", true);
+                    stopLoading(); 
+                    return;
+                }
+                
+                const sourceLang = sourceLangCode.substring(0, 2);
+                const userQuery = `Translate the following conversation text from language code ${sourceLang} strictly: "${sourceText}"`;
+                
+                setStatus(`Translating from ${sourceLang} to ${targetLangCode.substring(0, 2)}...`);
+                startLoading(); 
+
+                targetEl.value = '...Translating...'; 
+
+                const translatedText = await performTranslation(
+                    userQuery, 
+                    targetLangCode
+                );
+                
+                if (translatedText) {
+                    // 1. Log the turn if logging is active
+                    if (isLogging) {
+                        conversationHistory.push({
+                            speaker: speaker,
+                            source: sourceText,
+                            translation: translatedText,
+                            sourceLang: sourceLangCode,
+                            targetLang: targetLangCode,
+                            timestamp: new Date().toLocaleTimeString(),
+                        });
+                        console.log(`Turn logged: ${conversationHistory.length}`);
+                    }
+
+                    // 2. Display the translated text in the target element
+                    targetEl.value = translatedText;
+                    
+                    // 3. Start TTS playback
+                    setTimeout(() => {
+                        speakTextNative(translatedText, targetLangCode);
+                    }, 100); 
+                } else {
+                    targetEl.value = 'Translation failed.'; 
+                    stopLoading(); 
+                }
+            }
+            
+            // --- Native Browser Text-to-Speech (TTS) Logic ---
+
+            function speakTextNative(text, languageCode) {
+                if (!('speechSynthesis' in window)) {
+                    setStatus("Browser does not support native speech synthesis. Translation complete.", true);
+                    stopLoading();
+                    return;
+                }
+                
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = languageCode; 
+
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(voice => voice.lang.startsWith(languageCode.substring(0, 2)));
+                utterance.voice = preferredVoice || null;
+
+
+                utterance.onstart = () => {
+                    setStatus("Playing translated speech...");
+                };
+
+                utterance.onend = () => {
+                    setStatus("Speech playback finished. Ready for the next speaker.");
+                    stopLoading(); // Re-enable all buttons after TTS finishes
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('SpeechSynthesis Error:', event.error);
+                    setStatus(`Speech playback failed. Ready for the next speaker.`, true);
+                    stopLoading(); // Re-enable all buttons if TTS fails
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+
+
+            // --- Speech Recognition (Browser Native STT) Logic ---
+
+            /** Initializes and starts the Web Speech Recognition for a specific speaker */
+            function startRecognition(speaker, sourceLangEl, targetLangEl, sourceTextEl, targetTextEl, micButton, micTextEl, otherMicButton) {
+                
+                // If already recording, stop the current session (user clicked to stop)
+                if (isRecording) {
+                    // Clear VAD timer and stop the recognition
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                    recognition.stop();
+                    return; 
+                }
+
+                if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                    setStatus("Browser does not support Speech Recognition.", true);
+                    return;
+                }
+                
+                const sourceLangCode = sourceLangEl.value;
+                const targetLangCode = targetLangEl.value;
+                const sourceLangName = sourceLangEl.options[sourceLangEl.selectedIndex].text;
+                
+                if (sourceLangCode === 'autodetect' || targetLangCode === 'autodetect') {
+                    setStatus("Please select specific languages for the Conversation Mode.", true);
+                    return;
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+
+                recognition.lang = sourceLangCode;
+                recognition.interimResults = true;
+                recognition.continuous = true; // IMPORTANT: Keep mic open until explicitly stopped
+
+                sourceTextEl.value = '';
+                targetTextEl.value = '';
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    micButton.classList.add('mic-active', 'bg-red-700', 'hover:bg-red-800');
+                    micButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                    micTextEl.textContent = 'Recording... Click to Stop';
+                    
+                    otherMicButton.disabled = true;
+                    
+                    setStatus(`Listening for ${speaker} in ${sourceLangName}... (Will stop after 5s of silence)`);
+                    
+                    // Start the VAD timer on recognition start
+                    resetSilenceTimer(recognition);
+                };
+
+                recognition.onresult = (event) => {
+                    // IMPORTANT: Reset VAD timer on any speech result
+                    resetSilenceTimer(recognition);
+
+                    let fullTranscript = '';
+                    for (let i = 0; i < event.results.length; ++i) {
+                        const transcript = event.results[i][0].transcript;
+                        // Accumulate the transcript (final and interim) to provide real-time feedback
+                        fullTranscript += transcript + ' ';
+                    }
+                    // Update text area with the running transcript
+                    sourceTextEl.value = fullTranscript.trim();
+                };
+
+                recognition.onend = () => {
+                    // Clear the VAD timer whenever recognition stops (either automatically or manually)
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+
+                    isRecording = false;
+                    micButton.classList.remove('mic-active', 'bg-red-700', 'hover:bg-red-800');
+                    micButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                    micTextEl.textContent = `Listen (${speaker.slice(-1)})`;
+                    
+                    otherMicButton.disabled = false;
+
+                    // Process the translation
+                    if (sourceTextEl.value.trim().length > 0) {
+                        const finalSourceText = sourceTextEl.value.trim();
+
+                        handleConversationTranslation(
+                            finalSourceText, 
+                            sourceLangCode, 
+                            targetLangCode, 
+                            targetTextEl,
+                            speaker
+                        );
+                    } else {
+                        sourceTextEl.value = '';
+                        targetTextEl.value = '';
+                        setStatus("No speech detected. Conversation ready for next speaker.", true);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Recognition Error:", event.error);
+                    setStatus(`Error: ${event.error}. Conversation ready for next speaker.`, true);
+                    
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                    isRecording = false;
+                    micButton.classList.remove('mic-active', 'bg-red-700', 'hover:bg-red-800');
+                    micButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                    micTextEl.textContent = `Listen (${speaker.slice(-1)})`;
+                    targetTextEl.value = ''; 
+                    stopLoading(); 
+                };
+
+                recognition.start();
+            }
+
+            // --- LOGGING AND DOWNLOAD FUNCTIONS ---
+
+            function startLogging() {
+                isLogging = true;
+                conversationHistory = []; // Reset history
+                startLogButton.disabled = true;
+                stopLogButton.disabled = false;
+                downloadLogButton.disabled = true;
+                startLogButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                startLogButton.classList.add('bg-gray-400');
+                stopLogButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                setStatus("Conversation logging started. All turns will be recorded.");
+            }
+
+            function stopLogging() {
+                isLogging = false;
+                startLogButton.disabled = false;
+                stopLogButton.disabled = true;
+                
+                // Only enable download if history is not empty
+                if (conversationHistory.length > 0) {
+                    downloadLogButton.disabled = false;
+                }
+                
+                startLogButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                startLogButton.classList.remove('bg-gray-400');
+                stopLogButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                setStatus(`Conversation logging stopped. ${conversationHistory.length} turns recorded.`);
+            }
+
+            function downloadTextLog() {
+                if (conversationHistory.length === 0) {
+                    setStatus("No conversation history to download.", true);
+                    return;
+                }
+
+                let logContent = `--- Polyglot Conversation Log ---\n\n`;
+                
+                conversationHistory.forEach((turn, index) => {
+                    const speakerName = turn.speaker;
+                    const timestamp = turn.timestamp;
+                    const sourceLang = turn.sourceLang.split('-')[0].toUpperCase();
+                    const targetLang = turn.targetLang.split('-')[0].toUpperCase();
+                    
+                    logContent += `[${index + 1}] (${timestamp}) ${speakerName} [${sourceLang}]:\n`;
+                    logContent += `  > Source: ${turn.source}\n`;
+                    logContent += `  > Translation [${targetLang}]: ${turn.translation}\n\n`;
+                });
+
+                const blob = new Blob([logContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `conversation_log_${new Date().toISOString().slice(0, 10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setStatus("Text log downloaded successfully!");
+            }
+
+            // --- Initialization and Event Listeners ---
+
+            const supportedLanguages = [
+                { code: "en-US", name: "English (US)" },
+                { code: "es-ES", name: "Spanish (Spain)" },
+                { code: "fr-FR", name: "French (France)" },
+                { code: "de-DE", name: "German (Germany)" },
+                { code: "hi-IN", name: "Hindi (India)" },
+                { code: "ja-JP", name: "Japanese (Japan)" },
+                { code: "zh-CN", name: "Chinese (Mandarin)" },
+                { code: "pt-BR", name: "Portuguese (Brazil)" },
+                { code: "ru-RU", name: "Russian (Russia)" },
+                { code: "ko-KR", name: "Korean (South Korea)" },
+                { code: "bn-IN", name: "Bengali (India)" },
+                { code: "mr-IN", name: "Marathi (India)" },
+                { code: "te-IN", name: "Telugu (India)" },
+                { code: "ta-IN", name: "Tamil (India)" },
+            ];
+            
+            function populateLanguageSelectors() {
+                supportedLanguages.forEach(lang => {
+                    const optionA = new Option(lang.name, lang.code);
+                    const optionB = new Option(lang.name, lang.code);
+                    langAEl.add(optionA);
+                    langBEl.add(optionB);
+                });
+                
+                // Set initial defaults
+                langAEl.value = "en-US"; 
+                langBEl.value = "es-ES"; 
+            }
+            
+            // Event Listeners for Conversation Mode
+            micButtonA.addEventListener('click', () => {
+                startRecognition(
+                    "Speaker A", 
+                    langAEl, langBEl, // Source and Target Languages
+                    textAEl, textBEl, // Source and Target Text Areas
+                    micButtonA, micTextAEl, micButtonB // Buttons
+                );
+            });
+
+            micButtonB.addEventListener('click', () => {
+                startRecognition(
+                    "Speaker B", 
+                    langBEl, langAEl, // Source and Target Languages (Swapped)
+                    textBEl, textAEl, // Source and Target Text Areas (Swapped)
+                    micButtonB, micTextBEl, micButtonA // Buttons
+                );
+            });
+
+            // Event Listeners for Logging
+            startLogButton.addEventListener('click', startLogging);
+            stopLogButton.addEventListener('click', stopLogging);
+            downloadLogButton.addEventListener('click', downloadTextLog);
+
+
+            // Initial setup call
+            populateLanguageSelectors();
+            setStatus("Ready for a bilingual conversation. Click 'Start Log' to begin recording.");
+            
+            // Initialize voices for fast TTS playback
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+                window.speechSynthesis.onvoiceschanged = () => {
+                    // Voices are now loaded
+                };
+            }
+        });
+    </script>
+</body>
+</html>

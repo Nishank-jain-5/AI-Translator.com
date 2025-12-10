@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyglot Translator - URL Translation & Auto-Detect</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons for professional UI -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for background and effects */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(46, 189, 219, 0.3);
+        }
+        .mic-active {
+            animation: pulse-ring 1.5s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(46, 189, 219, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 189, 219, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 189, 219, 0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-4xl bg-white rounded-3xl p-8 card my-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-gray-800 flex items-center justify-center">
+                <i data-lucide="scan" class="w-8 h-8 mr-3 text-cyan-500"></i> Real-Time Translator
+            </h1>
+            <p class="text-gray-500 mt-2 text-lg">Translate text, voice, or the content of a video URL.</p>
+        </header>
+
+        <!-- Status Message and Loading Indicator -->
+        <div id="status-container" class="mb-6 h-8 text-center">
+            <p id="status-message" class="text-sm text-gray-600">Ready to translate! Source is set to Auto Detect.</p>
+            <div id="loading-spinner" class="hidden flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-cyan-600">Translating...</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Input (Source) Side -->
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700 flex items-center">
+                    <i data-lucide="subtitles" class="w-5 h-5 mr-2 text-blue-500"></i> Source Input
+                </h2>
+                
+                <!-- Input Type Tabs -->
+                <div class="flex border-b border-gray-300 mb-4">
+                    <button id="tabText" class="py-2 px-4 text-sm font-medium border-b-2 border-cyan-500 text-cyan-600 focus:outline-none">Text/Voice Input</button>
+                    <button id="tabUrl" class="py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none">Video URL Input</button>
+                </div>
+
+                <!-- Text/Voice Input Panel -->
+                <div id="panelText" class="input-panel">
+                    <!-- Language Selector (Text/Voice) -->
+                    <div class="mb-4">
+                        <label for="sourceLang" class="block text-sm font-medium text-gray-700 mb-1">Source Language</label>
+                        <select id="sourceLang" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Text/Voice Input Area -->
+                    <textarea id="sourceText" rows="6" placeholder="Speak now, or type the text you want to translate..."
+                        class="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-gray-800"></textarea>
+
+                    <!-- Voice Input Button -->
+                    <button id="micButton"
+                        class="mt-4 w-full flex items-center justify-center p-3 rounded-xl text-white font-bold bg-blue-500 hover:bg-blue-600 btn-primary"
+                        aria-label="Start Voice Input">
+                        <i data-lucide="mic" class="w-6 h-6 mr-2"></i>
+                        <span id="micText">Start Voice Input (Speech-to-Text)</span>
+                    </button>
+
+                    <!-- Translate Button for Text/Voice -->
+                    <button id="translateTextButton"
+                        class="mt-3 w-full flex items-center justify-center p-3 rounded-xl text-white font-bold bg-cyan-500 hover:bg-cyan-600 btn-primary"
+                        aria-label="Translate Text">
+                        <i data-lucide="globe" class="w-6 h-6 mr-2"></i>
+                        Translate Text
+                    </button>
+                </div>
+
+                <!-- Video URL Input Panel -->
+                <div id="panelUrl" class="input-panel hidden">
+                    <p class="text-sm text-gray-600 mb-4">Paste a YouTube or other web video URL. The AI will look up the content and translate its summary or topic.</p>
+                    
+                    <!-- URL Input Area -->
+                    <input type="url" id="videoUrl" placeholder="e.g., https://www.youtube.com/watch?v=..."
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-gray-800 mb-6">
+                    
+                    <!-- Translate Button for URL -->
+                    <button id="translateUrlButton"
+                        class="w-full flex items-center justify-center p-3 rounded-xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 btn-primary"
+                        aria-label="Translate Video URL Content">
+                        <i data-lucide="video" class="w-6 h-6 mr-2"></i>
+                        Translate Video Content
+                    </button>
+                </div>
+            </div>
+
+            <!-- Output (Target) Side -->
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700 flex items-center">
+                    <i data-lucide="message-square" class="w-5 h-5 mr-2 text-green-500"></i> Target Translation
+                </h2>
+                 <!-- Language Selector -->
+                <div class="mb-4">
+                    <label for="targetLang" class="block text-sm font-medium text-gray-700 mb-1">Target Language</label>
+                    <select id="targetLang" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Translated Text Output Area -->
+                <textarea id="targetText" rows="6" placeholder="Translated content will appear here..." readonly
+                    class="w-full p-3 border border-gray-300 rounded-lg resize-none bg-white text-gray-800"></textarea>
+
+                <!-- Voice Controls Container -->
+                <div class="mt-3 grid grid-cols-2 gap-3">
+                    <button id="speakButton" disabled
+                        class="flex items-center justify-center p-3 rounded-xl text-white font-bold bg-green-500 hover:bg-green-600 btn-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        aria-label="Start Speaking">
+                        <i data-lucide="volume-1" class="w-6 h-6 mr-2"></i>
+                        Speak
+                    </button>
+                    <button id="pauseResumeButton" disabled
+                        class="flex items-center justify-center p-3 rounded-xl text-gray-700 font-bold bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                        aria-label="Pause or Resume Speech">
+                        <i data-lucide="pause" class="w-6 h-6 mr-2" id="pauseResumeIcon"></i>
+                        <span id="pauseResumeText">Pause</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+
+    <!-- JavaScript Logic -->
+    <script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons(); // Initialize Lucide Icons
+
+            // Global Configuration & Elements
+            console.log(window.APP_CONFIG);
+            const API_KEY = `${window.APP_CONFIG.API_URL}`; 
+            // We use gemini-2.5-flash-preview-09-2025 for Google Search grounding
+            const GEMINI_GROUNDED_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+            const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            
+            // Element references
+            const sourceTextEl = document.getElementById('sourceText');
+            const targetTextEl = document.getElementById('targetText');
+            const videoUrlEl = document.getElementById('videoUrl');
+            const sourceLangEl = document.getElementById('sourceLang');
+            const targetLangEl = document.getElementById('targetLang');
+            const micButton = document.getElementById('micButton');
+            const translateTextButton = document.getElementById('translateTextButton');
+            const translateUrlButton = document.getElementById('translateUrlButton');
+            
+            // New/Updated TTS Controls
+            const speakButton = document.getElementById('speakButton');
+            const pauseResumeButton = document.getElementById('pauseResumeButton');
+            const pauseResumeIcon = document.getElementById('pauseResumeIcon');
+            const pauseResumeText = document.getElementById('pauseResumeText');
+            
+            const micTextEl = document.getElementById('micText');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const statusMessageEl = document.getElementById('status-message');
+
+            const tabText = document.getElementById('tabText');
+            const tabUrl = document.getElementById('tabUrl');
+            const panelText = document.getElementById('panelText');
+            const panelUrl = document.getElementById('panelUrl');
+
+            let currentInputType = 'text'; // 'text' or 'url'
+            let recognition = null;
+            let isRecording = false;
+            
+            // Reference to the speech synthesis API
+            const synth = window.speechSynthesis;
+
+
+            // --- API Call and Utility Functions ---
+
+            /** Generic fetch with exponential backoff for resilience */
+            async function exponentialBackoffFetch(url, options, maxRetries = 5) {
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                            console.warn(`Rate limit hit. Retrying in ${Math.round(delay / 1000)}s...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        if (!response.ok) {
+                            return response;
+                        }
+                        return response;
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        if (i === maxRetries - 1) throw error;
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                        console.warn(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay / 1000)}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+                throw new Error("API request failed after multiple retries.");
+            }
+
+            /** Updates the UI status */
+            function setStatus(message, isError = false) {
+                statusMessageEl.textContent = message;
+                statusMessageEl.className = `text-sm mt-1 text-center ${isError ? 'text-red-600 font-semibold' : 'text-gray-600'}`;
+                loadingSpinner.classList.add('hidden');
+                statusMessageEl.classList.remove('hidden');
+            }
+
+            /** Shows the loading spinner */
+            function startLoading() {
+                // Cancel any ongoing speech when a new task starts
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+                
+                loadingSpinner.classList.remove('hidden');
+                statusMessageEl.classList.add('hidden');
+                translateTextButton.disabled = true;
+                translateUrlButton.disabled = true;
+                micButton.disabled = true;
+                speakButton.disabled = true;
+                pauseResumeButton.disabled = true;
+            }
+
+            /** Hides the loading spinner and re-enables controls */
+            function stopLoading() {
+                loadingSpinner.classList.add('hidden');
+                statusMessageEl.classList.remove('hidden');
+                translateTextButton.disabled = false;
+                translateUrlButton.disabled = false;
+                micButton.disabled = false;
+                
+                // Re-enable speak button if valid text exists AND no speech is running
+                const hasValidText = targetTextEl.value.trim().length > 0 && 
+                                     !targetTextEl.value.startsWith('Error') &&
+                                     !targetTextEl.value.startsWith('Translation failed');
+
+                speakButton.disabled = !hasValidText || synth.speaking;
+                pauseResumeButton.disabled = true;
+                
+                // Ensure pause button looks like 'Pause' when stopped
+                pauseResumeIcon.setAttribute('data-lucide', 'pause');
+                pauseResumeText.textContent = 'Pause';
+                lucide.createIcons();
+            }
+
+
+            // --- Core Translation Logic (Gemini API Calls) ---
+
+            async function performTranslation(userQuery, targetLangCode, useGrounding = false) {
+                startLoading();
+                targetTextEl.value = '';
+
+                const apiUrl = useGrounding ? GEMINI_GROUNDED_API_URL : GEMINI_TEXT_API_URL;
+                const targetLang = targetLangCode.substring(0, 2); 
+
+                const systemInstruction = `You are a highly accurate, real-time language translation engine. Your task is to perform the requested translation strictly into language code ${targetLang}. Respond *only* with the translated text, do not add any commentary, greetings, or other filler text.`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                    tools: useGrounding ? [{ "google_search": {} }] : undefined,
+                };
+
+                try {
+                    const response = await exponentialBackoffFetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API returned status ${response.status}: ${errorBody.substring(0, 150)}...`);
+                    }
+
+                    const result = await response.json();
+                    const translated = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (translated && translated.trim().length > 0) {
+                        targetTextEl.value = translated.trim();
+                        setStatus("Translation complete! Click 'Speak' to hear it.");
+                    } else {
+                        targetTextEl.value = "Translation failed: The API returned no usable content.";
+                        setStatus("Translation failed: Empty response from API. Check console.", true);
+                    }
+
+                } catch (error) {
+                    console.error("Translation API FAILED:", error);
+                    setStatus(`Translation failed: ${error.message || 'Unknown network error'}.`, true);
+                    targetTextEl.value = "Error during translation process.";
+                } finally {
+                    stopLoading();
+                }
+            }
+
+
+            async function translateText(sourceText, sourceLangCode, targetLangCode) {
+                if (!sourceText.trim()) {
+                    setStatus("Please provide text or voice input to translate.", true);
+                    return;
+                }
+                
+                let userQuery;
+
+                if (sourceLangCode === 'autodetect') {
+                    // Instruct the model to detect the source language and then translate
+                    userQuery = `Detect the language of the following text, and then translate it strictly: "${sourceText}"`;
+                    setStatus("Auto-detecting language and translating...");
+                } else {
+                    // Use the two-letter language prefix (e.g., 'hi') for the API call
+                    const sourceLang = sourceLangCode.substring(0, 2);
+                    userQuery = `Translate the following text from language code ${sourceLang} strictly: "${sourceText}"`;
+                    setStatus(`Translating from ${sourceLang} to ${targetLangCode.substring(0, 2)}...`);
+                }
+                
+                // Use the standard (non-grounded) API for simple text translation
+                await performTranslation(userQuery, targetLangCode, false);
+            }
+
+            async function translateVideoUrl(videoUrl, targetLangCode) {
+                if (!videoUrl.trim() || !videoUrl.startsWith('http')) {
+                    setStatus("Please enter a valid URL (starting with http/https).", true);
+                    return;
+                }
+
+                const targetLang = targetLangCode.substring(0, 2); 
+                const userQuery = `Find the key content, topics, or summary of the video at this URL: ${videoUrl}, and translate that information into language code ${targetLang}. Summarize the content concisely in the target language.`;
+
+                setStatus("Searching for video content and translating summary...");
+                
+                // Use the grounded API for web search capabilities
+                await performTranslation(userQuery, targetLangCode, true);
+            }
+            
+            // --- Native Browser Text-to-Speech (TTS) Logic ---
+
+            /** Starts speaking the translated text. */
+            function speakTextNative(text, languageCode) {
+                if (!('speechSynthesis' in window)) {
+                    setStatus("Browser does not support native speech synthesis.", true);
+                    return;
+                }
+                
+                // Stop any current speech before starting a new one
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Use the full BCP-47 code (e.g., 'hi-IN') for better voice matching
+                utterance.lang = languageCode; 
+                
+                // Find a suitable voice for the language
+                const voices = synth.getVoices();
+                const voice = voices.find(v => v.lang === languageCode);
+                if (voice) {
+                    utterance.voice = voice;
+                }
+
+
+                // Set event handlers
+                utterance.onstart = () => {
+                    setStatus("Playing translated speech (Browser Voice)...");
+                    speakButton.disabled = true; 
+                    pauseResumeButton.disabled = false;
+                    pauseResumeIcon.setAttribute('data-lucide', 'pause');
+                    pauseResumeText.textContent = 'Pause';
+                    lucide.createIcons();
+                };
+
+                utterance.onend = () => {
+                    setStatus("Speech playback finished.");
+                    speakButton.disabled = false;
+                    pauseResumeButton.disabled = true;
+                    pauseResumeIcon.setAttribute('data-lucide', 'pause');
+                    pauseResumeText.textContent = 'Pause';
+                    lucide.createIcons();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('SpeechSynthesis Error:', event.error);
+                    setStatus(`Speech playback failed.`, true);
+                    speakButton.disabled = false;
+                    pauseResumeButton.disabled = true;
+                };
+
+                synth.speak(utterance);
+            }
+            
+            /** Toggles between pausing and resuming speech. */
+            function togglePauseResume() {
+                if (!synth.speaking && !synth.paused) return; // Must be speaking or paused to interact
+
+                if (synth.paused) {
+                    synth.resume();
+                    pauseResumeIcon.setAttribute('data-lucide', 'pause');
+                    pauseResumeText.textContent = 'Pause';
+                    setStatus("Speech resumed.");
+                } else if (synth.speaking) {
+                    synth.pause();
+                    pauseResumeIcon.setAttribute('data-lucide', 'play');
+                    pauseResumeText.textContent = 'Resume';
+                    setStatus("Speech paused.");
+                }
+                lucide.createIcons();
+            }
+
+
+            // --- Speech Recognition (Browser Native STT) Logic ---
+
+            /** Initializes and starts the Web Speech Recognition */
+            function startRecognition() {
+                if (isRecording) {
+                    recognition.stop();
+                    return;
+                }
+
+                if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                    setStatus("Browser does not support Speech Recognition. Use text input.", true);
+                    return;
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+
+                let sourceLangCode = sourceLangEl.value;
+                let statusMsg = '';
+
+                if (sourceLangCode === 'autodetect') {
+                    // STT requires a pre-selected language. Default to English (US) but inform the user.
+                    sourceLangCode = "en-US";
+                    statusMsg = "STT is recording in English (US). Please select a specific language for other inputs.";
+                } else {
+                    statusMsg = `Listening for ${sourceLangEl.options[sourceLangEl.selectedIndex].text}...`;
+                }
+
+                recognition.lang = sourceLangCode;
+                recognition.interimResults = true;
+                recognition.continuous = true;
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    micButton.classList.add('mic-active', 'bg-red-500', 'hover:bg-red-600');
+                    micButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                    micTextEl.textContent = 'Stop Recording';
+                    setStatus(statusMsg);
+                    sourceTextEl.value = ''; 
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    sourceTextEl.value = finalTranscript.trim() + interimTranscript.trim();
+                };
+
+                recognition.onend = () => {
+                    isRecording = false;
+                    micButton.classList.remove('mic-active', 'bg-red-500', 'hover:bg-red-600');
+                    micButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                    micTextEl.textContent = 'Start Voice Input (Speech-to-Text)';
+                    setStatus("Recording stopped. Click Translate.");
+
+                    // Automatically trigger translation if a final transcript exists
+                    if (sourceTextEl.value.trim().length > 0) {
+                        translateTextButton.click();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Recognition Error:", event.error);
+                    
+                    if (event.error === 'no-speech') {
+                        setStatus("Error: No speech detected. Please check your microphone and speak clearly.", true);
+                    } else {
+                        setStatus(`Error: ${event.error}. Try again.`, true);
+                    }
+                    
+                    isRecording = false;
+                    micButton.classList.remove('mic-active', 'bg-red-500', 'hover:bg-red-600');
+                    micButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                    micTextEl.textContent = 'Start Voice Input (Speech-to-Text)';
+                };
+
+                recognition.start();
+            }
+
+
+            // --- Initialization and Event Listeners ---
+
+            const supportedLanguages = [
+                { code: "autodetect", name: "Auto Detect" }, // New Auto Detect option
+                // Indian Languages
+                { code: "hi-IN", name: "Hindi (India)" },
+                { code: "bn-IN", name: "Bengali (India)" },
+                { code: "mr-IN", name: "Marathi (India)" },
+                { code: "te-IN", name: "Telugu (India)" },
+                { code: "ta-IN", name: "Tamil (India)" },
+                { code: "gu-IN", name: "Gujarati (India)" },
+                { code: "kn-IN", name: "Kannada (India)" },
+                { code: "ml-IN", name: "Malayalam (India)" },
+                { code: "or-IN", name: "Odia (India)" },
+                { code: "pa-IN", name: "Punjabi (India)" },
+                // Global Languages
+                { code: "en-US", name: "English (US)" },
+                { code: "es-ES", name: "Spanish (Spain)" },
+                { code: "fr-FR", name: "French (France)" },
+                { code: "de-DE", name: "German (Germany)" },
+                { code: "ja-JP", name: "Japanese (Japan)" },
+                { code: "zh-CN", name: "Chinese (Mandarin)" },
+                { code: "pt-BR", name: "Portuguese (Brazil)" },
+                { code: "ru-RU", name: "Russian (Russia)" },
+                { code: "ko-KR", name: "Korean (South Korea)" },
+            ];
+
+            function populateLanguageSelectors() {
+                supportedLanguages.forEach(lang => {
+                    const sourceOption = new Option(lang.name, lang.code);
+                    const targetOption = new Option(lang.name, lang.code);
+                    sourceLangEl.add(sourceOption);
+                    targetLangEl.add(targetOption);
+                });
+
+                // Set initial defaults
+                sourceLangEl.value = "autodetect"; // Default to Auto Detect
+                targetLangEl.value = "en-US";
+            }
+            
+            function switchTab(type) {
+                currentInputType = type;
+                if (type === 'text') {
+                    tabText.classList.add('border-cyan-500', 'text-cyan-600');
+                    tabText.classList.remove('border-transparent', 'text-gray-500');
+                    tabUrl.classList.remove('border-cyan-500', 'text-cyan-600');
+                    tabUrl.classList.add('border-transparent', 'text-gray-500');
+                    panelText.classList.remove('hidden');
+                    panelUrl.classList.add('hidden');
+                } else {
+                    tabUrl.classList.add('border-cyan-500', 'text-cyan-600');
+                    tabUrl.classList.remove('border-transparent', 'text-gray-500');
+                    tabText.classList.remove('border-cyan-500', 'text-cyan-600');
+                    tabText.classList.add('border-transparent', 'text-gray-500');
+                    panelUrl.classList.remove('hidden');
+                    panelText.classList.add('hidden');
+                }
+                // Clear output and reset status on tab switch
+                targetTextEl.value = '';
+                stopLoading();
+                setStatus(type === 'text' ? "Ready to translate text or voice." : "Ready to translate video content from URL.");
+            }
+            
+            tabText.addEventListener('click', () => switchTab('text'));
+            tabUrl.addEventListener('click', () => switchTab('url'));
+
+            micButton.addEventListener('click', startRecognition);
+
+            translateTextButton.addEventListener('click', () => {
+                const sourceText = sourceTextEl.value;
+                const sourceLangCode = sourceLangEl.value;
+                const targetLangCode = targetLangEl.value; 
+                translateText(sourceText, sourceLangCode, targetLangCode);
+            });
+            
+            translateUrlButton.addEventListener('click', () => {
+                const videoUrl = videoUrlEl.value;
+                const targetLangCode = targetLangEl.value;
+                translateVideoUrl(videoUrl, targetLangCode);
+            });
+            
+            speakButton.addEventListener('click', () => {
+                const translatedText = targetTextEl.value;
+                // Use the full BCP-47 code (e.g., 'en-US') for the browser's native TTS
+                const targetLang = targetLangEl.value; 
+                speakTextNative(translatedText, targetLang);
+            });
+            
+            pauseResumeButton.addEventListener('click', togglePauseResume);
+
+            // Ensure the speak button state updates whenever the output text changes manually
+            targetTextEl.addEventListener('input', () => {
+                stopLoading(); 
+            });
+
+
+            // Initial setup call
+            populateLanguageSelectors();
+        });
+    </script>
+</body>
+</html>

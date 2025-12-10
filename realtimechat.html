@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Named Polyglot Chat (Minimalist)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f1f5f9; /* Slate-100 */
+        }
+        .chat-log {
+            height: 400px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            border: 1px solid #e2e8f0;
+            background: white;
+        }
+        .user-panel {
+            min-height: 80vh;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <h1 class="text-4xl font-extrabold text-center mb-6 text-gray-800 flex items-center justify-center">
+        <i data-lucide="languages" class="w-8 h-8 mr-3 text-indigo-600"></i> Real-Time Translation Chat
+    </h1>
+
+    <div id="app" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- --- USER 1 PANEL (Indigo) --- -->
+        <div id="user-1-panel" class="user-panel bg-indigo-50 border-indigo-200">
+            <h2 class="text-2xl font-bold text-indigo-700 mb-4 border-b pb-2">User 1 Configuration</h2>
+
+            <!-- Name Input -->
+            <div class="mb-4">
+                <label for="nameInput1" class="block text-sm font-medium text-gray-700">My Name</label>
+                <input type="text" id="nameInput1" value="Alice" placeholder="Enter your name"
+                       class="w-full p-2 border rounded-lg text-sm font-semibold">
+            </div>
+
+            <!-- Language Configuration -->
+            <div class="flex space-x-2 mb-4">
+                <div class="flex-1">
+                    <label for="sourceLang1" class="block text-xs font-medium text-gray-600">I type in</label>
+                    <select id="sourceLang1" class="w-full p-2 border rounded-lg text-sm"></select>
+                </div>
+                <div class="flex-1">
+                    <label for="targetLang2" class="block text-xs font-medium text-gray-600">My partner reads in</label>
+                    <select id="targetLang2" class="w-full p-2 border rounded-lg text-sm"></select>
+                </div>
+            </div>
+
+            <!-- Chat Log -->
+            <div id="chatLog1" class="chat-log rounded-xl p-4 mb-4">
+                <p class="text-center text-gray-400 italic text-sm p-4">You will only see the **original** text you typed here. Your partner only sees the translation.</p>
+            </div>
+
+            <!-- Input Area -->
+            <div class="flex space-x-2">
+                <input type="text" id="messageInput1" placeholder="Type message for partner..." 
+                       class="flex-grow p-3 border border-indigo-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-gray-800">
+                <button id="sendButton1" onclick="handleChat('user1')"
+                        class="p-3 rounded-xl text-white font-semibold bg-indigo-500 hover:bg-indigo-600 transition duration-150 flex items-center shadow-md"
+                        aria-label="Send Message User 1">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p id="status1" class="text-xs text-gray-500 mt-2 text-center"></p>
+        </div>
+
+        <!-- --- USER 2 PANEL (Green) --- -->
+        <div id="user-2-panel" class="user-panel bg-green-50 border-green-200">
+            <h2 class="text-2xl font-bold text-green-700 mb-4 border-b pb-2">User 2 Configuration</h2>
+
+            <!-- Name Input -->
+            <div class="mb-4">
+                <label for="nameInput2" class="block text-sm font-medium text-gray-700">My Name</label>
+                <input type="text" id="nameInput2" value="Rahul" placeholder="Enter your name"
+                       class="w-full p-2 border rounded-lg text-sm font-semibold">
+            </div>
+
+            <!-- Language Configuration -->
+            <div class="flex space-x-2 mb-4">
+                <div class="flex-1">
+                    <label for="sourceLang2" class="block text-xs font-medium text-gray-600">I type in</label>
+                    <select id="sourceLang2" class="w-full p-2 border rounded-lg text-sm"></select>
+                </div>
+                <div class="flex-1">
+                    <label for="targetLang1" class="block text-xs font-medium text-gray-600">My partner reads in</label>
+                    <select id="targetLang1" class="w-full p-2 border rounded-lg text-sm"></select>
+                </div>
+            </div>
+
+            <!-- Chat Log -->
+            <div id="chatLog2" class="chat-log rounded-xl p-4 mb-4">
+                 <p class="text-center text-gray-400 italic text-sm p-4">You will only see the **translated** text your partner sent here. They only see their original message.</p>
+            </div>
+
+            <!-- Input Area -->
+            <div class="flex space-x-2">
+                <input type="text" id="messageInput2" placeholder="Type message for partner..." 
+                       class="flex-grow p-3 border border-green-300 rounded-xl focus:ring-green-500 focus:border-green-500 text-gray-800">
+                <button id="sendButton2" onclick="handleChat('user2')"
+                        class="p-3 rounded-xl text-white font-semibold bg-green-500 hover:bg-green-600 transition duration-150 flex items-center shadow-md"
+                        aria-label="Send Message User 2">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                </button>
+            </div>
+             <p id="status2" class="text-xs text-gray-500 mt-2 text-center"></p>
+        </div>
+
+    </div>
+    
+    <!-- Download Button -->
+    <div class="flex justify-center mt-6">
+        <button id="downloadChatButton" onclick="downloadChatLog()"
+                class="p-3 px-6 rounded-xl text-white font-semibold bg-gray-700 hover:bg-gray-800 transition duration-150 flex items-center shadow-xl">
+            <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+            Download Chat Log (.txt)
+        </button>
+    </div>
+    <script src="config.js"></script>
+    <!-- JavaScript Logic -->
+    <script>
+        console.log(window.APP_CONFIG);
+        // --- Configuration and Global Variables ---
+        const API_KEY = `${window.APP_CONFIG.API_URL}`; // Canvas provides API Key
+        // Using gemini-2.5-flash for translation
+        const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+        
+        // Global array to store chronological conversation history
+        let chatHistory = [];
+        
+        // Extended list of supported languages
+        const supportedLanguages = [
+            // Major World Languages
+            { code: "en", name: "English" },
+            { code: "es", name: "Spanish" },
+            { code: "fr", name: "French" },
+            { code: "de", name: "German" },
+            { code: "ja", name: "Japanese" },
+            { code: "zh", name: "Chinese (Simplified)" },
+            { code: "pt", name: "Portuguese" },
+            { code: "ru", name: "Russian" },
+            { code: "ko", name: "Korean" },
+            { code: "ar", name: "Arabic" },
+            
+            // Major Indian Languages (Scheduled Languages)
+            { code: "hi", name: "Hindi" },
+            { code: "bn", name: "Bengali" },
+            { code: "mr", name: "Marathi" },
+            { code: "te", name: "Telugu" },
+            { code: "ta", name: "Tamil" },
+            { code: "gu", name: "Gujarati" },
+            { code: "kn", name: "Kannada" },
+            { code: "ml", name: "Malayalam" },
+            { code: "pa", name: "Punjabi" },
+            { code: "or", name: "Odia" },
+        ];
+        
+        // --- Utility Functions ---
+
+        /** Updates the UI status message */
+        function setStatus(user, message, isError = false) {
+            const statusEl = document.getElementById(`status${user === 'user1' ? 1 : 2}`);
+            statusEl.textContent = message;
+            statusEl.className = `text-xs mt-2 text-center ${isError ? 'text-red-600 font-semibold' : 'text-gray-500'}`;
+        }
+        
+        /** Generic fetch with exponential backoff for resilience */
+        async function exponentialBackoffFetch(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    if (!response.ok) {
+                        if (response.status >= 500 && i < maxRetries - 1) throw new Error(`Server Error: ${response.status}`);
+                        throw new Error(`API returned status ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error("API request failed after multiple retries.");
+        }
+
+        /** Translates text using the Gemini API */
+        async function getTranslation(originalText, sourceLangCode, targetLangCode) {
+            // Use the full language names for better instruction
+            const sourceLangName = supportedLanguages.find(l => l.code === sourceLangCode)?.name || sourceLangCode;
+            const targetLangName = supportedLanguages.find(l => l.code === targetLangCode)?.name || targetLangCode;
+
+            const systemInstruction = `You are a highly accurate, real-time language translator. Your task is to translate the user's message from ${sourceLangName} to ${targetLangName}. Respond *only* with the translated text, do not add any commentary, filler, or quotes around the output.`;
+            const userQuery = `Translate the following text: "${originalText}"`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+            };
+
+            try {
+                const response = await exponentialBackoffFetch(GEMINI_TEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                let translated = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                // Basic cleanup of potential quote marks or filler phrases from the model
+                if (translated) {
+                    translated = translated.trim().replace(/^['"]|['"]$/g, '');
+                }
+
+                return translated && translated.length > 0 ? translated.trim() : "[Translation Error: Empty response]";
+
+            } catch (error) {
+                console.error("Translation API FAILED:", error);
+                return "[Translation Failed]";
+            }
+        }
+        
+        /** * Appends a message to a chat log
+         * @param {string} logId The ID of the chat log element (e.g., 'chatLog1', 'chatLog2').
+         * @param {string} senderName The name of the person who sent the message.
+         * @param {string} text The message content.
+         * @param {string} langCode The language code of the text displayed.
+         * @param {boolean} isTranslated True if the displayed text is a translation.
+         * @param {boolean} isFromThisPanel True if the message was initiated by the user of this panel.
+         * @param {string} accentColor The Tailwind color name ('indigo' or 'green') for the self-sent message.
+         */
+        function appendMessage(logId, senderName, text, langCode, isTranslated, isFromThisPanel, accentColor) {
+            const log = document.getElementById(logId);
+            
+            // --- Placeholder Removal ---
+            if (log.firstElementChild && log.firstElementChild.tagName === 'P' && log.firstElementChild.textContent.includes('only see the')) {
+                log.innerHTML = '';
+            }
+            // --- End Placeholder Removal ---
+            
+            const messageWrapper = document.createElement('div');
+            
+            // Determine colors and positioning
+            const isSelf = isFromThisPanel; // Use a clearer variable name for bubble logic
+
+            const bubbleBgClass = isSelf 
+                ? `bg-${accentColor}-500 shadow-lg text-white` // Self-sent: Accent color background, White text
+                : 'bg-gray-100 shadow-md text-gray-900'; // Partner-sent: Light background, Dark text
+            
+            const bubbleClass = `${bubbleBgClass} max-w-[90%] p-3 rounded-xl ${isSelf ? 'rounded-br-sm self-end' : 'rounded-tl-sm self-start'}`;
+            
+            messageWrapper.className = `flex mb-3 ${isSelf ? 'justify-end' : 'justify-start'}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = bubbleClass;
+
+            // Name - Text color explicitly set here for robustness
+            const nameP = document.createElement('p');
+            nameP.className = `font-bold text-sm mb-1 ${isSelf ? 'text-white' : 'text-gray-800'}`;
+            nameP.textContent = senderName;
+            bubble.appendChild(nameP);
+
+            // Text content (Main Message) - Text color explicitly set here for robustness
+            const textP = document.createElement('p');
+            textP.className = isSelf ? 'font-normal text-white' : 'font-normal text-gray-900';
+            textP.textContent = text;
+            bubble.appendChild(textP);
+
+            // Footer (Language/Status) - Text color explicitly set here for robustness
+            const langSpan = document.createElement('span');
+            langSpan.className = `block text-xs mt-1 italic ${isSelf ? 'text-white/80' : 'text-gray-600'}`;
+            
+            const langName = supportedLanguages.find(l => l.code === langCode)?.name || langCode;
+
+            // Set footer based on what the user is seeing (Original or Translated)
+            langSpan.textContent = isTranslated ? `Translated: ${langName}` : `Original: ${langName}`;
+
+            bubble.appendChild(langSpan);
+
+            messageWrapper.appendChild(bubble);
+            log.appendChild(messageWrapper);
+            
+            // Auto-scroll
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // --- Chat Interaction ---
+        
+        /** Main function to handle sending a message from one user to the other */
+        async function handleChat(senderId) {
+            const senderNum = senderId === 'user1' ? 1 : 2;
+            const receiverNum = senderId === 'user1' ? 2 : 1;
+            const senderAccentColor = senderId === 'user1' ? 'indigo' : 'green';
+            const receiverAccentColor = receiverNum === 1 ? 'indigo' : 'green';
+
+
+            const inputEl = document.getElementById(`messageInput${senderNum}`);
+            const originalText = inputEl.value.trim();
+            
+            if (!originalText) return;
+
+            // Get names and language codes
+            const senderName = document.getElementById(`nameInput${senderNum}`).value || `User ${senderNum}`;
+            const sourceLangCode = document.getElementById(`sourceLang${senderNum}`).value;
+            
+            // Note: The target language for the receiver is the targetLang for the *other* user's panel
+            const targetLangCodeForReceiver = document.getElementById(`targetLang${receiverNum}`).value; 
+            
+            const sendButton = document.getElementById(`sendButton${senderNum}`);
+
+            // 1. Disable input and set status
+            inputEl.disabled = true;
+            sendButton.disabled = true;
+            setStatus(senderId, "Translating message...");
+
+            // 2. Translate
+            try {
+                const translatedText = await getTranslation(originalText, sourceLangCode, targetLangCodeForReceiver);
+
+                
+                // === Minimalist Visibility Logic ===
+
+                // 3. SENDER'S LOG (chatLog{senderNum}): 
+                //    - Log only the Original Text
+                //    - isFromThisPanel = true (Self-sent, uses accent color)
+                appendMessage(`chatLog${senderNum}`, senderName, originalText, sourceLangCode, false, true, senderAccentColor);
+                
+                // 4. RECEIVER'S LOG (chatLog{receiverNum}): 
+                //    - Log only the Translated Text
+                //    - isFromThisPanel = false (Partner-sent, uses light gray color)
+                appendMessage(`chatLog${receiverNum}`, senderName, translatedText, targetLangCodeForReceiver, true, false, receiverAccentColor);
+                
+                // ========================
+                
+                
+                // 5. Record the conversation turn in the global history
+                chatHistory.push({
+                    timestamp: new Date(),
+                    senderName: senderName,
+                    originalText: originalText,
+                    originalLangCode: sourceLangCode,
+                    translatedText: translatedText,
+                    translatedLangCode: targetLangCodeForReceiver
+                });
+                
+                // 6. Cleanup
+                inputEl.value = '';
+                setStatus(senderId, "Message sent and translated successfully!");
+                
+            } catch (e) {
+                console.error("Chat process failed:", e);
+                setStatus(senderId, "Error: Translation failed. Check console for details.", true);
+            } finally {
+                inputEl.disabled = false;
+                sendButton.disabled = false;
+                inputEl.focus();
+            }
+        }
+
+
+        // --- Download Feature ---
+        
+        /** Formats the chat history into a text document and triggers download. */
+        function downloadChatLog() {
+            if (chatHistory.length === 0) {
+                // Use console warn instead of alert()
+                console.warn("The chat log is empty. Send some messages first!");
+                return;
+            }
+
+            const formatLangCode = (code) => supportedLanguages.find(l => l.code === code)?.name || code.toUpperCase();
+            
+            let logContent = "--- Polyglot Chat Conversation Log ---\n\n";
+            logContent += `Date Created: ${new Date().toLocaleString()}\n`;
+            logContent += `User 1: ${document.getElementById('nameInput1').value} (Source: ${formatLangCode(document.getElementById('sourceLang1').value)} / Reads: ${formatLangCode(document.getElementById('targetLang1').value)})\n`;
+            logContent += `User 2: ${document.getElementById('nameInput2').value} (Source: ${formatLangCode(document.getElementById('sourceLang2').value)} / Reads: ${formatLangCode(document.getElementById('targetLang2').value)})\n`;
+            logContent += "\n================================================\n\n";
+
+            chatHistory.forEach((item, index) => {
+                const ts = item.timestamp.toLocaleTimeString();
+                
+                logContent += `[${index + 1}] ${ts} - ${item.senderName}:\n`;
+                logContent += `  > Original (${formatLangCode(item.originalLangCode)}): ${item.originalText}\n`;
+                logContent += `  > Translated (${formatLangCode(item.translatedLangCode)}): ${item.translatedText}\n\n`;
+            });
+            
+            logContent += "--- END OF LOG ---";
+
+            // Create a Blob and trigger the download
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `polyglot_chat_log_${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+
+        // --- Initialization ---
+
+        function populateLanguageSelectors() {
+            supportedLanguages.forEach(lang => {
+                // User 1 Input Language
+                document.getElementById('sourceLang1').add(new Option(lang.name, lang.code));
+                // User 2 reads in this language (Target for User 1's messages)
+                document.getElementById('targetLang2').add(new Option(lang.name, lang.code));
+
+                // User 2 Input Language
+                document.getElementById('sourceLang2').add(new Option(lang.name, lang.code));
+                // User 1 reads in this language (Target for User 2's messages)
+                document.getElementById('targetLang1').add(new Option(lang.name, lang.code));
+            });
+
+            // Set initial defaults
+            document.getElementById('sourceLang1').value = "en"; // Alice types English
+            document.getElementById('targetLang2').value = "hi"; // Rahul reads English messages in Hindi
+            
+            document.getElementById('sourceLang2').value = "hi"; // Rahul types Hindi
+            document.getElementById('targetLang1').value = "en"; // Alice reads Hindi messages in English
+        }
+        
+        function setupEventListeners() {
+             // Set up Enter key press for User 1
+            document.getElementById('messageInput1').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleChat('user1');
+                }
+            });
+            
+             // Set up Enter key press for User 2
+            document.getElementById('messageInput2').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleChat('user2');
+                }
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            populateLanguageSelectors();
+            setupEventListeners();
+            setStatus('user1', "Ready! Alice (English) sends original text, Rahul sees the translation.");
+            setStatus('user2', "Ready! Rahul (Hindi) sends original text, Alice sees the translation.");
+        });
+    </script>
+</body>
+</html>
