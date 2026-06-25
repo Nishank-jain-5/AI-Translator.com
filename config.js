@@ -1,4 +1,4 @@
 
 window.APP_CONFIG = {
-    API_URL : "AIzaSyB4VxfC01XiuGSrghyrbsO4V7ca1u40r7M"
+    API_URL : "AQ.Ab8RN6ICkM199dfcC-aRAvgXPcUMxQfXz1P1nthAVXhfzrT7xw"
   };
