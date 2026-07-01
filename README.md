@@ -116,7 +116,7 @@ Go to Google Cloud Console → Credentials → Edit your key
 
 ## 🔐 API Key Security
 
-- API key is stored in `config.js` which is listed in `.gitignore`
+- API key is stored in `config.js`, which is listed in `.gitignore`
 - Never push your actual key to GitHub
 - Use `config.example.js` as reference (included in repo)
 - For production — use a backend proxy to keep key server-side
@@ -125,7 +125,7 @@ Go to Google Cloud Console → Credentials → Edit your key
 
 ## 🌍 Supported Languages
 
-50+ languages including:
+50+ languages, including:
 - All major Indian languages — Hindi, Tamil, Telugu,
   Kannada, Malayalam, Bengali, Gujarati, Marathi, Punjabi
 - International — English, French, German, Spanish,
@@ -135,8 +135,7 @@ Go to Google Cloud Console → Credentials → Edit your key
 
 ## 🤝 Contributing
 
-This is a personal minor project but contributions
-are always welcome!
+This is a personal minor project, but contributions are always welcome!
 
 1. Fork the repo
 2. Create your branch: `git checkout -b feature/your-feature`
@@ -149,15 +148,15 @@ are always welcome!
 ## 👤 Author
 
 **Nishank Jain**
-- 🔗 LinkedIn: [linkedin.com/in/yourprofile](https://linkedin.com/in/yourprofile)
-- 💻 GitHub: [github.com/yourusername](https://github.com/yourusername)
-- 📧 Email: your@email.com
+- 🔗 LinkedIn: https://linkedin.com/in/nishankjain594
+- 💻 GitHub: https://github.com/Nishank-jain-5
+- 📧 Email: nishankjain594@gmail.com
 
 ---
 
 ## ⭐ Support
 
-If you found this project useful or interesting — drop a ⭐ on the repo, it genuinely means a lot to a student builder! 🙏
+If you found this project useful or interesting, drop a ⭐ on the repo; it genuinely means a lot to a student builder! 🙏
 
 ---
 
