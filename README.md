@@ -123,24 +123,6 @@ Go to Google Cloud Console → Credentials → Edit your key
 
 ---
 
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### Real-Time Translation Chat
-![Chat](screenshots/chat.png)
-
-### Bilingual Voice Interface
-![Voice](screenshots/voice.png)
-
-### AI Content Generator
-![Generator](screenshots/generator.png)
-
-> 💡 Add your screenshots in a `/screenshots` folder in the repo
-
----
-
 ## 🌍 Supported Languages
 
 50+ languages including:
@@ -164,13 +146,6 @@ are always welcome!
 
 ---
 
-## 📄 License
-
-This project is open source and available under
-the [MIT License](LICENSE).
-
----
-
 ## 👤 Author
 
 **Nishank Jain**
@@ -182,11 +157,8 @@ the [MIT License](LICENSE).
 
 ## ⭐ Support
 
-If you found this project useful or interesting —
-drop a ⭐ on the repo, it genuinely means a lot
-to a student builder! 🙏
+If you found this project useful or interesting — drop a ⭐ on the repo, it genuinely means a lot to a student builder! 🙏
 
 ---
 
-*Built with curiosity, late nights, and a lot of
-Gemini API calls 😄*
+*Built with curiosity, late nights, and a lot of Gemini API calls 😄*
